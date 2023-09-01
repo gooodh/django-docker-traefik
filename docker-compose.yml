@@ -1,0 +1,53 @@
+services:
+  web:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    command: gunicorn config.wsgi -b 0.0.0.0:8000
+    expose:  # new
+      - 8000
+    environment:
+      - DEBUG=0
+      - DATABASE_URL=postgresql://django_traefik:django_traefik@db:5432/django_traefik
+      - DJANGO_ALLOWED_HOSTS=.ferum-dsg.ru
+    depends_on:
+      - db
+    labels: # new
+
+      - "traefik.enable=true"
+      - "traefik.http.routers.django.rule=Host(`django-traefik.localhost`)"
+      - "traefik.http.routers.django.entrypoints=web"
+
+      # - "traefik.enable=true"
+      # - "traefik.http.routers.django.rule=Host(`django-traefik.ferum-dsg.ru`)"
+      # - "traefik.http.routers.django.tls=true"
+      # - "traefik.http.routers.django.tls.certresolver=letsencrypt"
+  db:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data/
+    expose:
+      - 5432
+    environment:
+      - POSTGRES_USER=django_traefik
+      - POSTGRES_PASSWORD=django_traefik
+      - POSTGRES_DB=django_traefik
+  traefik:
+    image: "traefik:v2.10"
+    container_name: "traefik"
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+volumes:
+  postgres_data_prod:
+  traefik-public-certificates:
+
